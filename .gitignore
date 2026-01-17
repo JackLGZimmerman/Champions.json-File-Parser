@@ -1,0 +1,41 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Tooling caches
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Environment / secrets
+.env
+.env.*
+*.env
+!.env.example
+
+# Logs
+logs/
+*.log
+
+# Temporary / scratch
+temp.py
+tmp/
+temp/
+
+# Build / packaging
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Generated data outputs
+data/
+
+
+scripts/*.json
+examples/
