@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -1189,9 +1190,7 @@ def load_formatted_communitydragon_data(
 
 def iter_formatted_abilities(
     formatted_payload: dict[str, Any],
-) -> list[tuple[str, dict[str, Any], str, dict[str, Any]]]:
-    contexts: list[tuple[str, dict[str, Any], str, dict[str, Any]]] = []
-
+) -> Iterator[tuple[str, dict[str, Any], str, dict[str, Any]]]:
     for champion_name, champion_info in formatted_payload.items():
         if not isinstance(champion_name, str) or not isinstance(champion_info, dict):
             continue
@@ -1204,9 +1203,7 @@ def iter_formatted_abilities(
                 continue
             for ability in ability_entries:
                 if isinstance(ability, dict):
-                    contexts.append((champion_name, champion_info, ability_key, ability))
-
-    return contexts
+                    yield champion_name, champion_info, ability_key, ability
 
 
 def build_ability_row_base(

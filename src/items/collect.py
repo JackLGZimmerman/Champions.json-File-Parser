@@ -31,8 +31,6 @@ def load_items_collected(path: Path = ITEMS_FILE_PATH) -> list[dict[str, Any]]:
         raise FileNotFoundError(f"Item data file not found: {path}")
 
     records = load_jsonl(path)
-    if not isinstance(records, list):
-        raise ValueError("Collected item payload must be a JSON array.")
     return [
         item
         for item in records
@@ -40,16 +38,9 @@ def load_items_collected(path: Path = ITEMS_FILE_PATH) -> list[dict[str, Any]]:
     ]
 
 
-def write_items_collected(
-    data: list[dict[str, Any]],
-    path: Path = ITEMS_FILE_PATH,
-) -> None:
-    write_jsonl(data, path)
-
-
 def collect(output_path: Path = ITEMS_FILE_PATH, timeout: int = 10) -> None:
     data = fetch_items_raw(timeout=timeout)
-    write_items_collected(data, path=output_path)
+    write_jsonl(data, output_path)
     print(f"Wrote item payload to {output_path}")
 
 

@@ -12,13 +12,6 @@ STATIC_FILE_PATH = STATIC_DATA_DIR / "basic_stats.jsonl"
 CHAMPION_LEVEL_FIELDS = ("adaptiveType", "attackType", "resource")
 
 
-def load_validation_json(path: Path = CHAMPION_VALIDATED_PATH) -> dict[str, Any]:
-    data = load_champion_info_validated(path)
-    if not isinstance(data, dict):
-        raise ValueError("Validated champion payload must be a JSON object keyed by champion name.")
-    return data
-
-
 def flatten_stat_values(stats: dict[str, Any]) -> dict[str, Any]:
     flattened: dict[str, Any] = {}
     for stat_name, stat_value in stats.items():
@@ -64,7 +57,7 @@ def collect(
     input_path: Path = CHAMPION_VALIDATED_PATH,
     output_path: Path = STATIC_FILE_PATH,
 ) -> None:
-    validation_json = load_validation_json(input_path)
+    validation_json = load_champion_info_validated(input_path)
     champion_static_stats = extract_basic_static(validation_json)
     save_champion_static_data(champion_static_stats, path=output_path)
     print(f"Wrote champion static basic payload to {output_path}")

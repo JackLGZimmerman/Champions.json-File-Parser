@@ -27,6 +27,9 @@ COLLECTION_MODULES = (
     champ_id_name_map,
     item_value_map,
 )
+COLLECT_ALL_MODULES = tuple(
+    module for module in COLLECTION_MODULES if module is not champ_id_name_map
+)
 
 
 def register_collections(subparsers: Any) -> None:
@@ -35,7 +38,7 @@ def register_collections(subparsers: Any) -> None:
 
 
 def collect_all() -> None:
-    for module in COLLECTION_MODULES:
+    for module in COLLECT_ALL_MODULES:
         module.collect()
 
 
@@ -48,7 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     all_parser = subparsers.add_parser(
         "all",
-        help="Collect every configured data segment with default settings.",
+        help="Collect default data segments with default settings.",
     )
     all_parser.set_defaults(handler=run_all_from_args)
     return parser

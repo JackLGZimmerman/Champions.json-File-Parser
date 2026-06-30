@@ -22,8 +22,6 @@ TIE_BREAK_VALUE_OFFSET = 0.01
 # `BOOTS_*` and `LEGENDARY_*` cover intentional legendary inclusions that do not
 # satisfy the normal shop/in-store rules, such as upgraded boots and evolutions
 # like Diadem of Songs.
-# `SUMMONERS_RIFT_*` keeps specific SR-only items that should survive the normal
-# `displayInItemSets` gate.
 EXCLUDED_ITEM_VALUE_MAP_IDS = {
     3005,
     3010,
@@ -69,7 +67,6 @@ LEGENDARY_ITEM_VALUE_MAP_ADDITION_IDS = BOOTS_ITEM_VALUE_MAP_ADDITION_IDS | {
     3877,
     6701,
 }
-SUMMONERS_RIFT_ITEM_VALUE_MAP_ADDITION_IDS: set[int] = set()
 
 
 class BuildValues(TypedDict):
@@ -238,16 +235,13 @@ def is_legendary_item_value_item(item: dict[str, Any]) -> bool:
         return True
     if item.get("inStore") is not True:
         return False
-    if (
-        item.get("displayInItemSets") is not True
-        and item_id not in SUMMONERS_RIFT_ITEM_VALUE_MAP_ADDITION_IDS
-    ):
+    if item.get("displayInItemSets") is not True:
         return False
     price_total = item.get("priceTotal")
     return isinstance(price_total, int) and price_total > 1800
 
 
-def extract_legendary_item_ids_from_items(
+def extract_legendary_item_ids(
     items: list[dict[str, Any]] | None = None,
 ) -> set[int]:
     items = load_jsonl_dicts(ITEMS_PATH) if items is None else items
@@ -256,12 +250,6 @@ def extract_legendary_item_ids_from_items(
         for item in items
         if isinstance(item, dict) and is_legendary_item_value_item(item)
     }
-
-
-def extract_legendary_item_ids(items: list[dict[str, Any]]) -> set[int]:
-    return extract_legendary_item_ids_from_items(items)
-
-
 def extract_direct_related_item_ids(
     items_by_id: dict[int, dict[str, Any]],
     parent_item_ids: set[int],
@@ -306,7 +294,7 @@ def extract_item_pools_from_items(
 ) -> ItemPools:
     items = load_jsonl_dicts(ITEMS_PATH) if items is None else items
     items_by_id = build_items_by_id(items)
-    legendary_item_ids = extract_legendary_item_ids_from_items(items)
+    legendary_item_ids = extract_legendary_item_ids(items)
 
     direct_component_item_ids = extract_direct_related_item_ids(
         items_by_id,
@@ -370,13 +358,14 @@ def index_scoped_build_values(
 def calculate_related_item_build_values(
     source_item_ids: set[int],
     target_item_ids: set[int],
+    items_by_id: dict[int, dict[str, Any]],
     generic_target_values_by_itemid: dict[int, BuildValues],
     scoped_target_values_by_combo: dict[ChampionPositionKey, dict[int, BuildValues]],
     counts_by_combo: dict[ChampionPositionKey, dict[int, int]],
 ) -> list[ScopedItemBuild]:
-    upgrade_map = build_item_upgrade_map(source_item_ids)
+    upgrade_map = build_item_upgrade_map(source_item_ids, items_by_id)
     priced_item_ids = source_item_ids | target_item_ids
-    price_by_itemid = build_item_price_map(priced_item_ids)
+    price_by_itemid = build_item_price_map(priced_item_ids, items_by_id)
     calculated_builds: list[ScopedItemBuild] = []
     generic_target_values_by_itemid = {
         itemid: values
@@ -420,12 +409,14 @@ def calculate_related_item_build_values(
 
 def calculate_component_build_values(
     item_pools: ItemPools,
+    items_by_id: dict[int, dict[str, Any]],
     baseline_by_itemid: dict[int, BuildValues],
     counts_by_combo: dict[ChampionPositionKey, dict[int, int]],
 ) -> list[ScopedItemBuild]:
     return calculate_related_item_build_values(
         source_item_ids=item_pools.component_item_ids,
         target_item_ids=item_pools.legendary_item_ids,
+        items_by_id=items_by_id,
         generic_target_values_by_itemid=baseline_by_itemid,
         scoped_target_values_by_combo={},
         counts_by_combo=counts_by_combo,
@@ -434,6 +425,7 @@ def calculate_component_build_values(
 
 def calculate_sub_component_build_values(
     item_pools: ItemPools,
+    items_by_id: dict[int, dict[str, Any]],
     baseline_by_itemid: dict[int, BuildValues],
     component_values: list[ScopedItemBuild],
     counts_by_combo: dict[ChampionPositionKey, dict[int, int]],
@@ -441,6 +433,7 @@ def calculate_sub_component_build_values(
     return calculate_related_item_build_values(
         source_item_ids=item_pools.sub_component_item_ids,
         target_item_ids=item_pools.component_item_ids | item_pools.legendary_item_ids,
+        items_by_id=items_by_id,
         generic_target_values_by_itemid=baseline_by_itemid,
         scoped_target_values_by_combo=index_scoped_build_values(component_values),
         counts_by_combo=counts_by_combo,
@@ -555,15 +548,15 @@ def report_counted_items_missing_from_map(
         print(f"{itemid} {format_item_name(itemid, items_by_id)}")
 
 
-def build_item_upgrade_map(item_ids: set[int]) -> dict[int, tuple[int, ...]]:
+def build_item_upgrade_map(
+    item_ids: set[int],
+    items_by_id: dict[int, dict[str, Any]],
+) -> dict[int, tuple[int, ...]]:
     upgrade_map: dict[int, tuple[int, ...]] = {}
 
-    for item in load_jsonl_dicts(ITEMS_PATH):
-        if not isinstance(item, dict):
-            continue
-
-        item_id = item.get("id")
-        if item_id not in item_ids:
+    for item_id in item_ids:
+        item = items_by_id.get(item_id)
+        if item is None:
             continue
 
         to_items = item.get("to")
@@ -576,16 +569,18 @@ def build_item_upgrade_map(item_ids: set[int]) -> dict[int, tuple[int, ...]]:
     return upgrade_map
 
 
-def build_item_price_map(item_ids: set[int]) -> dict[int, int]:
+def build_item_price_map(
+    item_ids: set[int],
+    items_by_id: dict[int, dict[str, Any]],
+) -> dict[int, int]:
     price_map: dict[int, int] = {}
 
-    for item in load_jsonl_dicts(ITEMS_PATH):
-        if not isinstance(item, dict):
+    for item_id in item_ids:
+        item = items_by_id.get(item_id)
+        if item is None:
             continue
-
-        item_id = item.get("id")
         price_total = item.get("priceTotal")
-        if item_id in item_ids and isinstance(price_total, int) and price_total > 0:
+        if isinstance(price_total, int) and price_total > 0:
             price_map[item_id] = price_total
 
     return price_map
@@ -664,11 +659,13 @@ def calculate_build_values(
     )
     component_values = calculate_component_build_values(
         item_pools,
+        items_by_id,
         baseline_by_itemid,
         counts_by_combo,
     )
     sub_component_values = calculate_sub_component_build_values(
         item_pools,
+        items_by_id,
         baseline_by_itemid,
         component_values,
         counts_by_combo,

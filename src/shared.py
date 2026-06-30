@@ -13,13 +13,6 @@ def data_segment_dir(segment: str) -> Path:
     return DATA_DIR / segment
 
 
-def first_existing_path(*paths: Path) -> Path | None:
-    for path in paths:
-        if path.exists():
-            return path
-    return None
-
-
 def fetch_json(url: str, timeout: int = 10) -> Any:
     response = requests.get(url, timeout=timeout)
     response.raise_for_status()

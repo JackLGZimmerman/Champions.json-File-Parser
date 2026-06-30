@@ -50,20 +50,13 @@ def extract_ability_advanced(formatted_payload: dict[str, Any]) -> list[dict[str
     return ability_rows
 
 
-def save_ability_advanced_data(
-    ability_rows: list[dict[str, Any]],
-    path: Path = ABILITY_ADVANCED_FILE_PATH,
-) -> None:
-    write_jsonl(ability_rows, path)
-
-
 def collect(
     input_path: Path = COMMUNITYDRAGON_FORMATTED_PATH,
     output_path: Path = ABILITY_ADVANCED_FILE_PATH,
 ) -> None:
     formatted_payload = load_formatted_communitydragon_data(input_path, refresh=True)
     ability_rows = extract_ability_advanced(formatted_payload)
-    save_ability_advanced_data(ability_rows, path=output_path)
+    write_jsonl(ability_rows, output_path)
     print(f"Wrote champion ability advanced payload to {output_path}")
     print(f"Wrote formatted CommunityDragon ability source to {input_path}")
 
