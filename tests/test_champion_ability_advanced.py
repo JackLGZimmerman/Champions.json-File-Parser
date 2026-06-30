@@ -19,6 +19,9 @@ from champion_ability_advanced.extract import (  # noqa: E402
     build_raw_nested_path_rows,
     extract_ability_advanced,
 )
+from champion_ability_advanced.detailed_features import (  # noqa: E402
+    build_champion_ability_detailed_features,
+)
 from champions.communitydragon import ABILITY_ORDER  # noqa: E402
 from champion_ability_attributes.generate_final_features import (  # noqa: E402
     build_champion_ability_scaling_profiles,
@@ -231,6 +234,103 @@ class ChampionAbilityAttributesRegressionTest(unittest.TestCase):
         self.assertNotIn("sc_ab", profile_rows[0])
         self.assertNotIn("p_ap_ab", profile_rows[0])
         self.assertNotIn("d_mag_ab", profile_rows[0])
+
+
+class ChampionAbilityDetailedFeaturesTest(unittest.TestCase):
+    def build_rows(self) -> list[dict[str, Any]]:
+        payload = formatted_payload_fixture()
+        ability_rows = extract_ability_advanced(payload)
+        attribute_rows = extract_final_ability_attribute_features(payload)
+        return build_champion_ability_detailed_features(ability_rows, attribute_rows)
+
+    def test_outputs_one_fixed_schema_row_per_champion(self) -> None:
+        rows = self.build_rows()
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["_key"], "103")
+        self.assertEqual(rows[0]["championId"], 103)
+        self.assertEqual(rows[0]["championName"], "Ahri")
+        self.assertEqual(rows[1]["_key"], "63")
+        self.assertEqual(rows[1]["championName"], "Brand")
+        self.assertEqual(
+            {tuple(row.keys()) for row in rows},
+            {tuple(rows[0].keys())},
+        )
+
+    def test_slot_fields_include_detailed_traits_and_summaries(self) -> None:
+        row = self.build_rows()[0]
+
+        for slot in ABILITY_ORDER:
+            self.assertIn(f"{slot}_castTime", row)
+            self.assertIn(f"{slot}_cooldown_rank1", row)
+            self.assertIn(f"{slot}_cooldown_rankmax", row)
+            self.assertIn(f"{slot}_cooldown_has_values", row)
+            self.assertIn(f"{slot}_damageType_MAGIC_DAMAGE", row)
+            self.assertIn(f"{slot}_targetingType_Target", row)
+            self.assertIn(f"{slot}_projectile_true", row)
+            self.assertIn(f"{slot}_spellshieldable_true", row)
+            self.assertIn(f"{slot}_dataValues_count", row)
+            self.assertIn(f"{slot}_scalingPart_count", row)
+            self.assertIn(f"{slot}_raw_has_missile_spec", row)
+            self.assertIn(f"{slot}_raw_missile_speed", row)
+            self.assertIn(f"{slot}_percent_ap", row)
+            self.assertIn(f"{slot}_dmg_magic", row)
+            self.assertIn(f"{slot}_projectile_trait", row)
+
+        self.assertEqual(row["Q_cooldown_rank1"], 10.0)
+        self.assertEqual(row["Q_cooldown_rankmax"], 5.0)
+        self.assertEqual(row["Q_cooldown_delta"], -5.0)
+        self.assertEqual(row["Q_percent_ap"], 1)
+        self.assertEqual(row["Q_dmg_magic"], 1)
+        self.assertEqual(row["Q_raw_missile_speed"], 1400.0)
+
+    def test_expands_generic_compact_attribute_trait_names(self) -> None:
+        payload = formatted_payload_fixture()
+        ability_rows = extract_ability_advanced(payload)
+        attribute_rows = extract_final_ability_attribute_features(payload)
+        for attribute_row in attribute_rows:
+            attribute_row["aoe"] = 0
+            attribute_row["cc"] = 0
+            if (
+                attribute_row["championId"] == 103
+                and attribute_row["abilityKey"] == "Q"
+            ):
+                attribute_row["aoe"] = 1
+                attribute_row["cc"] = 1
+
+        row = build_champion_ability_detailed_features(
+            ability_rows,
+            attribute_rows,
+        )[0]
+
+        self.assertEqual(row["Q_area_of_effect"], 1)
+        self.assertEqual(row["Q_crowd_control"], 1)
+        self.assertNotIn("Q_aoe", row)
+        self.assertNotIn("Q_cc", row)
+        self.assertNotIn("Q_proj", row)
+
+    def test_excludes_source_text_and_compact_alias_fields(self) -> None:
+        row = self.build_rows()[0]
+        text_fields = {"description", "dynamicDescription", "name", "recordPath"}
+        compact_aliases = {"aoe", "cc", "sc_ab", "p_ap", "d_mag", "stk", "proj"}
+
+        for key in row:
+            self.assertFalse(
+                any(key == field or key.endswith(f"_{field}") for field in text_fields)
+            )
+            self.assertFalse(
+                any(key == alias or key.endswith(f"_{alias}") for alias in compact_aliases)
+            )
+
+    def test_does_not_mutate_source_rows(self) -> None:
+        payload = formatted_payload_fixture()
+        ability_rows = extract_ability_advanced(payload)
+        attribute_rows = extract_final_ability_attribute_features(payload)
+        original_ability_rows = deepcopy(ability_rows)
+
+        build_champion_ability_detailed_features(ability_rows, attribute_rows)
+
+        self.assertEqual(ability_rows, original_ability_rows)
 
 
 if __name__ == "__main__":

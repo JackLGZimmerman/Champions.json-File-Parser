@@ -4,5 +4,8 @@ from shared import data_segment_dir
 
 ABILITY_ADVANCED_DATA_DIR = data_segment_dir("champion-ability-advanced")
 ABILITY_ADVANCED_FILE_PATH = ABILITY_ADVANCED_DATA_DIR / "abilities.jsonl"
+CHAMPION_ABILITY_DETAILED_FEATURES_FILE_PATH = (
+    ABILITY_ADVANCED_DATA_DIR / "champion_ability_detailed_features.jsonl"
+)
 RAW_FIELD_COVERAGE_FILE_PATH = ABILITY_ADVANCED_DATA_DIR / "raw_field_coverage.json"
 RAW_NESTED_PATHS_FILE_PATH = ABILITY_ADVANCED_DATA_DIR / "raw_nested_paths.jsonl"
