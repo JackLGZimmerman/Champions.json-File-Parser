@@ -47,3 +47,32 @@ Generated outputs under `data/` and examples under `examples/` are intentionally
 
 - `src/shared.py` contains common JSON, JSONL, filesystem, and HTTP helpers.
 - `pyproject.toml` defines the package metadata and runtime dependencies.
+
+## Champion Simulator API
+
+The deterministic simulator lives in `src/simulator/` and is exposed through
+`simulate_actions`.
+
+```python
+from simulator import SimulationRequest, simulate_actions
+
+request = SimulationRequest(
+    attacker="Aatrox",
+    target="Ahri",
+    actions=(
+        "Aatrox Q - Activation 1, "
+        "Aatrox Q - Activation 2, "
+        "Aatrox Q - Activation 3, "
+        "Aatrox E"
+    ),
+)
+
+result = simulate_actions(request)
+print(result.total_damage)
+```
+
+V1 supports deterministic champion base stats, action parsing, direct ability
+damage, physical/magic/true mitigation, Aatrox Q activation handling, and
+explicit warnings or errors for unsupported formulas. Items, runes, buffs,
+cooldowns, resources, crits, DOT timing, shields, healing, and complex champion
+state are intentionally out of scope for this first simulator layer.
