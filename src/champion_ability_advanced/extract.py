@@ -11,7 +11,6 @@ IDENTITY_FIELD_NAMES = (
     "championName",
     "championId",
     "abilityKey",
-    "abilityIndex",
 )
 ABILITY_FIELD_NAMES = (
     "affect",
@@ -25,9 +24,7 @@ ABILITY_FIELD_NAMES = (
     "dataValues",
     "description",
     "dynamicDescription",
-    "innerRadius",
     "name",
-    "onTargetCdStatic",
     "projectile",
     "range",
     "ratioColumns",
@@ -42,9 +39,14 @@ ABILITY_FIELD_NAMES = (
     "targetRange",
     "targetingType",
     "targetting",
-    "tetherRadius",
     "units",
     "width",
+)
+SOURCE_ABILITY_FIELD_NAMES = (
+    *ABILITY_FIELD_NAMES,
+    "innerRadius",
+    "onTargetCdStatic",
+    "tetherRadius",
 )
 ROW_FIELD_NAMES = IDENTITY_FIELD_NAMES + ABILITY_FIELD_NAMES
 RAW_NESTED_INVENTORY_FIELDS = ("mMissileSpec", "mTargetingTypeData")
@@ -140,7 +142,7 @@ def discover_ability_fields(contexts: list[AbilityContext]) -> tuple[str, ...]:
 
 def validate_ability_fields(
     contexts: list[AbilityContext],
-    expected_fields: tuple[str, ...] = ABILITY_FIELD_NAMES,
+    expected_fields: tuple[str, ...] = SOURCE_ABILITY_FIELD_NAMES,
 ) -> None:
     expected_field_set = set(expected_fields)
     for champion_name, _champion_info, ability_key, _index, ability in contexts:
@@ -192,9 +194,8 @@ def validate_unique_rows(rows: list[dict[str, Any]]) -> None:
 
 
 def build_ability_row(context: AbilityContext) -> dict[str, Any]:
-    champion_name, champion_info, ability_key, ability_index, ability = context
+    champion_name, champion_info, ability_key, _ability_index, ability = context
     row = build_ability_row_base(champion_name, champion_info, ability_key)
-    row["abilityIndex"] = ability_index
     for field_name in ABILITY_FIELD_NAMES:
         row[field_name] = ability[field_name]
     return row

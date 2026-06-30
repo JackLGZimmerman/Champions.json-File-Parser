@@ -19,12 +19,9 @@ ATTRIBUTE_IDENTITY_FIELDS = frozenset(
 SCALAR_FIELDS = (
     "castTime",
     "collisionRadius",
-    "innerRadius",
-    "onTargetCdStatic",
     "rechargeRate",
     "speed",
     "targetRange",
-    "tetherRadius",
     "width",
     "angle",
 )

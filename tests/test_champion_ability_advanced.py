@@ -124,7 +124,6 @@ class ChampionAbilityAdvancedExtractTest(unittest.TestCase):
         self.assertEqual(rows[0]["_key"], "Ahri:P")
         self.assertEqual(rows[0]["championName"], "Ahri")
         self.assertEqual(rows[0]["abilityKey"], "P")
-        self.assertEqual(rows[0]["abilityIndex"], 0)
         self.assertEqual(rows[-1]["_key"], "Brand:R")
 
         for field_name in ABILITY_FIELD_NAMES:
