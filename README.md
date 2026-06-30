@@ -22,7 +22,7 @@ Generated outputs under `data/` and examples under `examples/` are intentionally
 
 | Segment | Purpose | Relevant files | Main output |
 | --- | --- | --- | --- |
-| `champions` | Fetch or load champion data, validate it, normalize it, and optionally refresh the raw cache. | `scripts/collect.py`, `src/collect.py`, `src/champions/collect.py`, `src/champions/normalize.py`, `src/champions/validate.py`, `src/champions/models/champion_models.py` | `data/champions/raw.json`, `data/champions/validated.json` |
+| `champions` | Fetch or load champion data, validate it, preserve the detailed payload, and optionally refresh the raw cache. | `scripts/collect.py`, `src/collect.py`, `src/champions/collect.py`, `src/champions/normalize.py`, `src/champions/validate.py`, `src/champions/models/champion_models.py` | `data/champions/raw.json`, `data/champions/validated.json` |
 | `items` | Fetch the current CommunityDragon item payload. | `scripts/collect.py`, `src/collect.py`, `src/items/collect.py`, `src/shared.py` | `data/items/items.jsonl` |
 | `item-images` | Extract item id, name, price, and image URL records from collected item data. | `scripts/collect.py`, `src/collect.py`, `src/items/info.py`, `src/items/value_map/scoring.py`, `src/items/relationships.py` | `data/items/item_info.jsonl` |
 | `champion-static-basic` | Flatten validated champion stats into basic static rows. | `scripts/collect.py`, `src/collect.py`, `src/champion_static_basic/collect.py`, `src/champions/collect.py` | `data/champion-static-basic/basic_stats.jsonl` |

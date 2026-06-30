@@ -17,7 +17,7 @@ Position = str
 
 
 class AttributeMetric(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     flat: float
     percent: float
     perLevel: NonNegativeFloat
@@ -61,7 +61,7 @@ class Stats(BaseModel):
 
 
 class AttributeRating(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     damage: NonNegativeInt
     toughness: NonNegativeInt
     control: NonNegativeInt
@@ -72,29 +72,31 @@ class AttributeRating(BaseModel):
 
 
 class Modifier(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     values: list[float]
     units: list[str]
 
 
 class Cooldown(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     modifiers: Any
     affectedByCdr: bool
 
 
 class Cost(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     modifiers: Any
 
 
 class Leveling(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     attribute: str
     modifiers: Any
 
 
 class Effect(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     description: str
     leveling: list[Leveling]
 
@@ -141,7 +143,7 @@ class Abilities(BaseModel):
 
 
 class PriceOptions(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
     blueEssence: NonNegativeInt
     rp: NonNegativeInt
     saleRp: NonNegativeInt

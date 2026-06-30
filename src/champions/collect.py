@@ -105,8 +105,8 @@ def collect(
         print(f"Wrote raw champion cache to {cache_path}")
 
     validated_models = validate_champions(data)
-    cleaned_payload = normalize_champions(validated_models)
-    validated_jsonable = to_jsonable_python(cleaned_payload)
+    validated_payload = normalize_champions(validated_models)
+    validated_jsonable = to_jsonable_python(validated_payload)
 
     write_champion_info_validated(validated_jsonable, path=output_path)
     print(f"Wrote validated champion payload to {output_path}")
