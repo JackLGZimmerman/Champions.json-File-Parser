@@ -18,6 +18,7 @@ RATIO_IDENTITY_FIELDS = frozenset(
     ("_key", "championName", "championId", "abilityKey", "stageCount")
 )
 FEATURE_NAME_REPLACEMENTS = (
+    ("stack_scaling", "stk"),
     ("percent_", "p_"),
     ("flat_", "f_"),
     ("target_", "t_"),
@@ -31,8 +32,6 @@ FEATURE_NAME_REPLACEMENTS = (
     ("attack_speed", "as"),
     ("movement_speed", "ms"),
     ("crit_chance", "crit"),
-    ("feast_stack", "feast"),
-    ("siphoning_strike_stack", "siphon"),
     ("eff_", "e_"),
     ("dmg_", "d_"),
     ("physical", "phys"),

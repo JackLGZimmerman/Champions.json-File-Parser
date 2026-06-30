@@ -43,6 +43,38 @@ DAMAGE_TYPE_CONCEPTS = {
     "TRUE_DAMAGE": "dmg_true",
     "OTHER_DAMAGE": "dmg_mixed",
 }
+STACK_SCALING_PATTERNS = (
+    r"\bstardust\b",
+    r"\bphenomenal evil\b",
+    r"\bdragon practice\b",
+    r"\bsplinters of wrath\b",
+    r"\bhex fragments?\b",
+    r"\badoration\b",
+    r"\bscalemail\b",
+    r"\baccelerando\b",
+    r"\bdetermination\b[^.;]*(?:stack|bonus attack damage)",
+    r"\boverwhelm\b[^.;]*(?:stack|damage)",
+    r"\bvoid coral\b|\blavender\b",
+    r"\bfeast\b[^.;]*\bstack|\bstack[^.;]*\bfeast",
+    r"\bfuture siphoning strikes?\b|\bsiphoning strike[^.;]*permanent",
+    r"\bsoul fragments?\b",
+    r"\bharvest[^.;]*\bsouls?\b",
+    r"\bmist fuels\b",
+    r"\bsouls?\b[^.;]*(?:trapped|absorbing|attack damage|attack range|critical strike)",
+    r"\bchimes?\b|\bmeeps?\b",
+    r"\bhunts? completed\b|\bhunt permanently empowers\b",
+    r"\bpermanent(?:ly)?\b[^.;]*(?:stacks?|ability power|max(?:imum)? health)",
+    r"\bpermanent(?:ly)?\b[^.;]*(?:ability haste|augments?|empowers?|improves?)",
+    r"\bpermanently increases?[^.;]*damage",
+    r"\bpermanently granting[^.;]*(?:armor|armour|ability power)",
+    r"\bkilling units permanently grants?\b[^.;]*(?:resists?|armor|armour|magic resist)",
+    r"\bgains?[^.;]*max health[^.;]*(?:kills?|takedowns?)",
+    r"\bkills?[^.;]*gains?[^.;]*max health",
+    r"\bcollect(?:s|ed|ing)?[^.;]*(?:stardust|chimes?|souls?|soul fragments?)",
+    r"\bcollect(?:s|ed|ing)?[^.;]*(?:splinters|hex fragments)",
+    r"\bstacks? increase[^.;]*(?:damage|abilities)",
+    r"\bbased on stacks of\b",
+)
 
 
 def normalize_text(value: Any) -> str:
@@ -137,19 +169,6 @@ def base_stat_names_from_text(value: Any) -> set[str]:
     elif text_has(r"\battack damage\b|\bad\b|\btotal ad\b", text):
         stats.add("ad")
 
-    if "stardust" in text:
-        stats.add("stardust")
-    if "soul" in text:
-        stats.add("soul")
-    if "chime" in text:
-        stats.add("chime")
-    if "mist" in text:
-        stats.add("mist")
-    if "feast stack" in text:
-        stats.add("feast_stack")
-    if "siphoning strike stack" in text:
-        stats.add("siphoning_strike_stack")
-
     return stats
 
 
@@ -213,6 +232,8 @@ def extract_ability_concepts(ability: dict[str, Any]) -> set[str]:
     }
     if grants_resist_buff(text):
         concepts.add("eff_resist")
+    if has_stack_scaling(text):
+        concepts.add("stack_scaling")
     cc_concepts = {
         concept
         for concept, pattern in CC_PATTERNS.items()
@@ -230,6 +251,10 @@ def extract_ability_concepts(ability: dict[str, Any]) -> set[str]:
     if ability.get("spellEffects") == "spellaoe":
         concepts.add("aoe")
     return concepts
+
+
+def has_stack_scaling(text: str) -> bool:
+    return any(text_has(pattern, text) for pattern in STACK_SCALING_PATTERNS)
 
 
 def grants_resist_buff(text: str) -> bool:
