@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "champion-information"
+name = "game-data-collection"
 version = "0.1.0"
-description = "Add your description here"
+description = "General collection pipelines for game data."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,3 +15,9 @@ dependencies = [
     "requests>=2.32.5",
     "ruff>=0.14.9",
 ]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools.packages.find]
+where = ["src"]

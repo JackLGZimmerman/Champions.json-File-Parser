@@ -1,0 +1,1 @@
+"""Champion collection package."""

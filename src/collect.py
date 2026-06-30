@@ -1,53 +1,72 @@
-import json
+from __future__ import annotations
+
+import argparse
+import sys
 from pathlib import Path
 from typing import Any
 
-from pydantic_core import to_jsonable_python
+import champ_id_name_map.collect as champ_id_name_map
+import champion_ability_advanced.collect as champion_ability_advanced
+import champion_ability_ratios.collect as champion_ability_ratios
+import champion_static_basic.collect as champion_static_basic
+import champions.collect as champions
+import item_images.collect as item_images
+import item_value_map.collect as item_value_map
+import items.collect as items
 
-from src.load import fetch_champion_info_raw, load_champion_info_collected
-from src.models.champion_models import ChampionInformation
-from src.noise import exclude_fields
+if __package__ is None or __package__ == "":
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from .error import Error
-from .validate import validate_champions
+COLLECTION_MODULES = (
+    champions,
+    items,
+    item_images,
+    champion_static_basic,
+    champion_ability_advanced,
+    champion_ability_ratios,
+    champ_id_name_map,
+    item_value_map,
+)
 
-log_file = Path("logs/champion_validation_errors.json")
-champion_file = Path("data/validated_champion.json")
-example_file = Path("examples/champions.json")
+
+def register_collections(subparsers: Any) -> None:
+    for module in COLLECTION_MODULES:
+        module.register_parser(subparsers)
 
 
-def collect():
-    data: Any
-    if example_file.exists():
-        data = load_champion_info_collected()
-        print("Loaded data")
+def collect_all() -> None:
+    for module in COLLECTION_MODULES:
+        module.collect()
 
-    else:
-        data = fetch_champion_info_raw()
-        print("Fetched data")
 
-    with example_file.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Collect project data into segment folders under data/.",
+    )
+    subparsers = parser.add_subparsers(dest="segment")
+    register_collections(subparsers)
 
-    with Error(log_file, raise_on_exit=True) as error:
-        validated: dict[str, ChampionInformation] = validate_champions(
-            data, error=error
-        )
+    all_parser = subparsers.add_parser(
+        "all",
+        help="Collect every configured data segment with default settings.",
+    )
+    all_parser.set_defaults(handler=run_all_from_args)
+    return parser
 
-    validated: dict[str, dict[str, Any]] = exclude_fields(validated)
-    validated_jsonable = to_jsonable_python(validated)
 
-    champion_file.parent.mkdir(parents=True, exist_ok=True)
+def run_all_from_args(args: Any) -> None:
+    collect_all()
 
-    with champion_file.open("w", encoding="utf-8") as f:
-        json.dump(
-            validated_jsonable,
-            f,
-            indent=2,
-            ensure_ascii=False,
-            sort_keys=True,
-        )
+
+def main(argv: list[str] | None = None) -> None:
+    parser = build_parser()
+    args = parser.parse_args(argv or sys.argv[1:] or ["champions"])
+    handler = getattr(args, "handler", None)
+    if handler is None:
+        parser.print_help()
+        raise SystemExit(2)
+    handler(args)
 
 
 if __name__ == "__main__":
-    collect()
+    main()
