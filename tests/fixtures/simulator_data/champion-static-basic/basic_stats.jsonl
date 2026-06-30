@@ -1,2 +1,0 @@
-{"_key":"Aatrox","id":266,"adaptiveType":"Physical","attackType":"Melee","resource":"Blood Well","health_flat":650.0,"health_perLevel":114.0,"attackDamage_flat":60.0,"attackDamage_perLevel":5.0,"armor_flat":38.0,"armor_perLevel":4.8,"magicResistance_flat":32.0,"magicResistance_perLevel":2.05}
-{"_key":"Ahri","id":103,"adaptiveType":"Magic","attackType":"Ranged","resource":"Mana","health_flat":590.0,"health_perLevel":104.0,"attackDamage_flat":53.0,"attackDamage_perLevel":3.0,"armor_flat":21.0,"armor_perLevel":4.7,"magicResistance_flat":30.0,"magicResistance_perLevel":1.3}

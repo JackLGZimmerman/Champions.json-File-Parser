@@ -5,9 +5,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import champ_id_name_map.collect as champ_id_name_map
-import champion_ability_advanced.collect as champion_ability_advanced
-import champion_ability_attributes.collect as champion_ability_attributes
 import champion_static_basic.collect as champion_static_basic
 import champions.collect as champions
 import items.collect as items
@@ -22,14 +19,9 @@ COLLECTION_MODULES = (
     items,
     item_info,
     champion_static_basic,
-    champion_ability_advanced,
-    champion_ability_attributes,
-    champ_id_name_map,
     item_value_map,
 )
-COLLECT_ALL_MODULES = tuple(
-    module for module in COLLECTION_MODULES if module is not champ_id_name_map
-)
+COLLECT_ALL_MODULES = COLLECTION_MODULES
 
 
 def register_collections(subparsers: Any) -> None:
