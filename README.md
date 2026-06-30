@@ -1,13 +1,20 @@
 # Collection CLI
 
-Run collection through the primary CLI wrapper:
+Run collection through the single collection CLI:
+
+```bash
+uv run collect <segment>
+uv run collect all
+```
+
+The direct script wrapper is still available for compatibility:
 
 ```bash
 python scripts/collect.py <segment>
 python scripts/collect.py all
 ```
 
-With no segment, the CLI defaults to `champions`.
+With no segment, both entry points default to `champions`.
 
 Generated outputs under `data/` and examples under `examples/` are intentionally ignored and can be recreated by the collectors. Source inputs that are required for regeneration live outside `data/`, such as `inputs/item_value_map/championid_position_item_counts.csv`.
 
@@ -29,6 +36,7 @@ Generated outputs under `data/` and examples under `examples/` are intentionally
 
 | File | Purpose |
 | --- | --- |
+| `collect` | Installed console entry point for the collection CLI. |
 | `scripts/collect.py` | Compatibility wrapper that adds `src/` to `sys.path` and runs `src/collect.py`. |
 | `src/collect.py` | Root argparse orchestrator. Registers segment subcommands and runs individual collectors or `all`. |
 | `src/item_value_map/scoring.py` | Source-controlled item-value scorer that regenerates `data/items/item_value_map.jsonl` from collected item data and `inputs/item_value_map/championid_position_item_counts.csv`. |

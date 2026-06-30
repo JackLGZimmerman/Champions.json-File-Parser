@@ -16,6 +16,9 @@ dependencies = [
     "ruff>=0.14.9",
 ]
 
+[project.scripts]
+collect = "collect:main"
+
 [tool.setuptools.package-dir]
 "" = "src"
 
