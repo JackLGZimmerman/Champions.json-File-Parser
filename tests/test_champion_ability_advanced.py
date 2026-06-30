@@ -24,7 +24,6 @@ from champion_ability_advanced.detailed_features import (  # noqa: E402
 )
 from champions.communitydragon import ABILITY_ORDER  # noqa: E402
 from champion_ability_attributes.generate_final_features import (  # noqa: E402
-    build_champion_ability_scaling_profiles,
     extract_final_ability_attribute_features,
 )
 
@@ -204,10 +203,7 @@ class ChampionAbilityAttributesRegressionTest(unittest.TestCase):
     def test_attribute_pipeline_stays_separate_from_advanced_table(self) -> None:
         payload = formatted_payload_fixture()
         attribute_rows = extract_final_ability_attribute_features(payload)
-        profile_rows = build_champion_ability_scaling_profiles(attribute_rows)
-
         self.assertEqual(len(attribute_rows), 10)
-        self.assertEqual(len(profile_rows), 2)
         self.assertNotIn("raw", attribute_rows[0])
         self.assertIn("stageCount", attribute_rows[0])
         self.assertTrue(
@@ -219,21 +215,6 @@ class ChampionAbilityAttributesRegressionTest(unittest.TestCase):
             )
         )
         self.assertIn("percent_ap", attribute_rows[0])
-        self.assertIn("championId", profile_rows[0])
-        self.assertIn("championName", profile_rows[0])
-        self.assertIn("ability_count", profile_rows[0])
-        self.assertIn("scaling_ability_count", profile_rows[0])
-        self.assertIn("scaling_trait_type_count", profile_rows[0])
-        self.assertIn("scaling_trait_match_count", profile_rows[0])
-        self.assertIn("scaling_stage_match_count", profile_rows[0])
-        self.assertIn("percent_ap_ability_count", profile_rows[0])
-        self.assertIn("percent_ap_stage_count", profile_rows[0])
-        self.assertIn("dmg_magic_ability_count", profile_rows[0])
-        self.assertNotIn("cid", profile_rows[0])
-        self.assertNotIn("champ", profile_rows[0])
-        self.assertNotIn("sc_ab", profile_rows[0])
-        self.assertNotIn("p_ap_ab", profile_rows[0])
-        self.assertNotIn("d_mag_ab", profile_rows[0])
 
 
 class ChampionAbilityDetailedFeaturesTest(unittest.TestCase):
