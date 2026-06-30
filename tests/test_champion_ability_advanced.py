@@ -215,6 +215,12 @@ class ChampionAbilityAttributesRegressionTest(unittest.TestCase):
                 and key != "stageCount"
             )
         )
+        self.assertIn("percent_ap", attribute_rows[0])
+        self.assertIn("percent_ap_ab", profile_rows[0])
+        self.assertIn("percent_ap_st", profile_rows[0])
+        self.assertIn("dmg_magic_ab", profile_rows[0])
+        self.assertNotIn("p_ap_ab", profile_rows[0])
+        self.assertNotIn("d_mag_ab", profile_rows[0])
 
 
 if __name__ == "__main__":

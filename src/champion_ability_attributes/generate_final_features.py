@@ -17,26 +17,6 @@ from shared import write_jsonl
 ATTRIBUTE_IDENTITY_FIELDS = frozenset(
     ("_key", "championName", "championId", "abilityKey", "stageCount")
 )
-FEATURE_NAME_REPLACEMENTS = (
-    ("stack_scaling", "stk"),
-    ("percent_", "p_"),
-    ("flat_", "f_"),
-    ("target_", "t_"),
-    ("bonus_", "b_"),
-    ("current_", "cur_"),
-    ("missing_", "miss_"),
-    ("magic_resistance", "mr"),
-    ("magic_pen", "mpen"),
-    ("armour_pen", "arpen"),
-    ("armour", "ar"),
-    ("attack_speed", "as"),
-    ("movement_speed", "ms"),
-    ("crit_chance", "crit"),
-    ("eff_", "e_"),
-    ("dmg_", "d_"),
-    ("physical", "phys"),
-    ("magic", "mag"),
-)
 
 
 def ability_scaling_stage_count(ability: dict[str, Any]) -> int:
@@ -105,35 +85,10 @@ def attribute_stat_types_from_rows(attribute_rows: list[dict[str, Any]]) -> list
     )
 
 
-def compact_feature_name(feature_name: str) -> str:
-    compact_name = feature_name
-    for source, replacement in FEATURE_NAME_REPLACEMENTS:
-        compact_name = compact_name.replace(source, replacement)
-    return compact_name
-
-
-def compact_feature_names(feature_names: list[str]) -> dict[str, str]:
-    compact_names: dict[str, str] = {}
-    used_names: dict[str, str] = {}
-
-    for feature_name in feature_names:
-        compact_name = compact_feature_name(feature_name)
-        existing_feature = used_names.get(compact_name)
-        if existing_feature is not None and existing_feature != feature_name:
-            raise ValueError(
-                "Compact feature name collision: "
-                f"{feature_name} and {existing_feature} both map to {compact_name}"
-            )
-        compact_names[feature_name] = compact_name
-        used_names[compact_name] = feature_name
-
-    return compact_names
-
-
 def empty_champion_scaling_profile(
     champion_id: int,
     champion_name: str,
-    compact_features_by_name: dict[str, str],
+    feature_names: list[str],
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
         "_key": str(champion_id),
@@ -145,9 +100,9 @@ def empty_champion_scaling_profile(
         "sc_m": 0,
         "sc_st": 0,
     }
-    for compact_feature in compact_features_by_name.values():
-        row[f"{compact_feature}_ab"] = 0
-        row[f"{compact_feature}_st"] = 0
+    for feature_name in feature_names:
+        row[f"{feature_name}_ab"] = 0
+        row[f"{feature_name}_st"] = 0
     return row
 
 
@@ -155,7 +110,6 @@ def build_champion_ability_scaling_profiles(
     attribute_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     feature_names = attribute_stat_types_from_rows(attribute_rows)
-    compact_features_by_name = compact_feature_names(feature_names)
     profiles: dict[int, dict[str, Any]] = {}
 
     for attribute_row in attribute_rows:
@@ -168,7 +122,7 @@ def build_champion_ability_scaling_profiles(
             profiles[champion_id] = empty_champion_scaling_profile(
                 champion_id,
                 champion_name,
-                compact_features_by_name,
+                feature_names,
             )
         profile = profiles[champion_id]
         stage_count = attribute_row.get("stageCount")
@@ -177,11 +131,11 @@ def build_champion_ability_scaling_profiles(
 
         profile["ab"] += 1
         ability_stat_count = 0
-        for feature_name, compact_feature in compact_features_by_name.items():
+        for feature_name in feature_names:
             if attribute_row.get(feature_name) != 1:
                 continue
-            profile[f"{compact_feature}_ab"] += 1
-            profile[f"{compact_feature}_st"] += stage_count
+            profile[f"{feature_name}_ab"] += 1
+            profile[f"{feature_name}_st"] += stage_count
             ability_stat_count += 1
 
         if ability_stat_count:
@@ -192,8 +146,8 @@ def build_champion_ability_scaling_profiles(
     for profile in profiles.values():
         profile["sc_ty"] = sum(
             1
-            for compact_feature in compact_features_by_name.values()
-            if profile[f"{compact_feature}_ab"] > 0
+            for feature_name in feature_names
+            if profile[f"{feature_name}_ab"] > 0
         )
 
     return sorted(
