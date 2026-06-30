@@ -7,7 +7,7 @@ from typing import Any
 
 import champ_id_name_map.collect as champ_id_name_map
 import champion_ability_advanced.collect as champion_ability_advanced
-import champion_ability_ratios.collect as champion_ability_ratios
+import champion_ability_attributes.collect as champion_ability_attributes
 import champion_static_basic.collect as champion_static_basic
 import champions.collect as champions
 import item_images.collect as item_images
@@ -23,7 +23,7 @@ COLLECTION_MODULES = (
     item_images,
     champion_static_basic,
     champion_ability_advanced,
-    champion_ability_ratios,
+    champion_ability_attributes,
     champ_id_name_map,
     item_value_map,
 )

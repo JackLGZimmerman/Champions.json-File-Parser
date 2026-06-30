@@ -3,18 +3,18 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from champion_ability_ratios.paths import (
-    ABILITY_RATIO_FEATURES_FILE_PATH,
+from champion_ability_attributes.paths import (
+    ABILITY_ATTRIBUTE_FEATURES_FILE_PATH,
     CHAMPION_ABILITY_SCALING_PROFILE_FILE_PATH,
 )
-from champion_ability_ratios.scaling_detection import (
+from champion_ability_attributes.scaling_detection import (
     extract_ability_concepts,
     extract_ability_scaling_stats,
 )
 from champions.communitydragon import build_ability_row_base, iter_formatted_abilities
 from shared import write_jsonl
 
-RATIO_IDENTITY_FIELDS = frozenset(
+ATTRIBUTE_IDENTITY_FIELDS = frozenset(
     ("_key", "championName", "championId", "abilityKey", "stageCount")
 )
 FEATURE_NAME_REPLACEMENTS = (
@@ -87,20 +87,20 @@ def build_final_feature_rows(
     return final_rows
 
 
-def extract_final_ability_ratio_features(
+def extract_final_ability_attribute_features(
     formatted_payload: dict[str, Any],
 ) -> list[dict[str, Any]]:
     partial_rows, stat_types = collect_partial_rows_and_stat_types(formatted_payload)
     return build_final_feature_rows(partial_rows, stat_types)
 
 
-def ratio_stat_types_from_rows(ratio_rows: list[dict[str, Any]]) -> list[str]:
+def attribute_stat_types_from_rows(attribute_rows: list[dict[str, Any]]) -> list[str]:
     return sorted(
         {
             key
-            for row in ratio_rows
+            for row in attribute_rows
             for key, value in row.items()
-            if key not in RATIO_IDENTITY_FIELDS and value in {0, 1}
+            if key not in ATTRIBUTE_IDENTITY_FIELDS and value in {0, 1}
         }
     )
 
@@ -152,15 +152,15 @@ def empty_champion_scaling_profile(
 
 
 def build_champion_ability_scaling_profiles(
-    ratio_rows: list[dict[str, Any]],
+    attribute_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    feature_names = ratio_stat_types_from_rows(ratio_rows)
+    feature_names = attribute_stat_types_from_rows(attribute_rows)
     compact_features_by_name = compact_feature_names(feature_names)
     profiles: dict[int, dict[str, Any]] = {}
 
-    for ratio_row in ratio_rows:
-        champion_id = ratio_row.get("championId")
-        champion_name = ratio_row.get("championName")
+    for attribute_row in attribute_rows:
+        champion_id = attribute_row.get("championId")
+        champion_name = attribute_row.get("championName")
         if not isinstance(champion_id, int) or not isinstance(champion_name, str):
             continue
 
@@ -171,14 +171,14 @@ def build_champion_ability_scaling_profiles(
                 compact_features_by_name,
             )
         profile = profiles[champion_id]
-        stage_count = ratio_row.get("stageCount")
+        stage_count = attribute_row.get("stageCount")
         if not isinstance(stage_count, int) or stage_count < 1:
             stage_count = 1
 
         profile["ab"] += 1
         ability_stat_count = 0
         for feature_name, compact_feature in compact_features_by_name.items():
-            if ratio_row.get(feature_name) != 1:
+            if attribute_row.get(feature_name) != 1:
                 continue
             profile[f"{compact_feature}_ab"] += 1
             profile[f"{compact_feature}_st"] += stage_count
@@ -205,11 +205,11 @@ def build_champion_ability_scaling_profiles(
     )
 
 
-def save_ability_ratio_features(
-    ratio_rows: list[dict[str, Any]],
-    path: Path = ABILITY_RATIO_FEATURES_FILE_PATH,
+def save_ability_attribute_features(
+    attribute_rows: list[dict[str, Any]],
+    path: Path = ABILITY_ATTRIBUTE_FEATURES_FILE_PATH,
 ) -> None:
-    write_jsonl(ratio_rows, path)
+    write_jsonl(attribute_rows, path)
 
 
 def save_champion_ability_scaling_profiles(
