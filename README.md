@@ -32,6 +32,8 @@ Generated outputs under `data/` and examples under `examples/` are intentionally
 | `item-value-map` | Build the scoped item value map from item baselines and champion-position item counts. | `scripts/collect.py`, `src/collect.py`, `src/item_value_map/collect.py`, `src/item_value_map/scoring.py`, `src/item_value_map/item_group_definitions.py`, `inputs/item_value_map/championid_position_item_counts.csv` | `data/items/item_value_map.jsonl` |
 | `all` | Run the default collection flow in order; skips the standalone id-map command because `champion-ability-advanced` writes that output from the same CommunityDragon index fetch. | `scripts/collect.py`, `src/collect.py`, all default collector modules above | All outputs above |
 
+`champion_ability_scaling_profile.jsonl` uses compact per-champion fields for model input: `cid`, `champ`, `ab`, `sc_ab`, `sc_ty`, `sc_m`, and `sc_st`, plus compact feature counts such as `p_ap_ab`, `p_t_max_hp_ab`, `e_shield_ab`, and `cc_slow_ab`. The `_ab` suffix counts abilities and `_st` counts scaling/effect stages.
+
 ## Executable Files
 
 | File | Purpose |

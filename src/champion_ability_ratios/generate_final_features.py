@@ -7,13 +7,45 @@ from champion_ability_ratios.paths import (
     ABILITY_RATIO_FEATURES_FILE_PATH,
     CHAMPION_ABILITY_SCALING_PROFILE_FILE_PATH,
 )
-from champion_ability_ratios.scaling_detection import extract_ability_scaling_stats
+from champion_ability_ratios.scaling_detection import (
+    extract_ability_concepts,
+    extract_ability_scaling_stats,
+)
 from champions.communitydragon import build_ability_row_base, iter_formatted_abilities
 from shared import write_jsonl
 
 RATIO_IDENTITY_FIELDS = frozenset(
     ("_key", "championName", "championId", "abilityKey", "stageCount")
 )
+FEATURE_NAME_REPLACEMENTS = (
+    ("percent_", "p_"),
+    ("flat_", "f_"),
+    ("target_", "t_"),
+    ("bonus_", "b_"),
+    ("current_", "cur_"),
+    ("missing_", "miss_"),
+    ("magic_resistance", "mr"),
+    ("magic_pen", "mpen"),
+    ("armour_pen", "arpen"),
+    ("armour", "ar"),
+    ("attack_speed", "as"),
+    ("movement_speed", "ms"),
+    ("crit_chance", "crit"),
+    ("feast_stack", "feast"),
+    ("siphoning_strike_stack", "siphon"),
+    ("eff_", "e_"),
+    ("dmg_", "d_"),
+    ("physical", "phys"),
+    ("magic", "mag"),
+)
+
+
+def ability_scaling_stage_count(ability: dict[str, Any]) -> int:
+    for key in ("scalingParts", "damageParts"):
+        parts = ability.get(key)
+        if isinstance(parts, list) and parts:
+            return len(parts)
+    return 1
 
 
 def collect_partial_rows_and_stat_types(
@@ -25,17 +57,12 @@ def collect_partial_rows_and_stat_types(
     for champion_name, champion_info, ability_key, ability in iter_formatted_abilities(
         formatted_payload
     ):
-        stats = extract_ability_scaling_stats(ability)
+        stats = extract_ability_scaling_stats(ability) | extract_ability_concepts(ability)
         stat_types.update(stats)
         partial_rows.append(
             {
                 **build_ability_row_base(champion_name, champion_info, ability_key),
-                "stageCount": max(
-                    len(ability.get("damageParts", []))
-                    if isinstance(ability.get("damageParts"), list)
-                    else 0,
-                    1,
-                ),
+                "stageCount": ability_scaling_stage_count(ability),
                 "_stats": stats,
             }
         )
@@ -79,31 +106,57 @@ def ratio_stat_types_from_rows(ratio_rows: list[dict[str, Any]]) -> list[str]:
     )
 
 
+def compact_feature_name(feature_name: str) -> str:
+    compact_name = feature_name
+    for source, replacement in FEATURE_NAME_REPLACEMENTS:
+        compact_name = compact_name.replace(source, replacement)
+    return compact_name
+
+
+def compact_feature_names(feature_names: list[str]) -> dict[str, str]:
+    compact_names: dict[str, str] = {}
+    used_names: dict[str, str] = {}
+
+    for feature_name in feature_names:
+        compact_name = compact_feature_name(feature_name)
+        existing_feature = used_names.get(compact_name)
+        if existing_feature is not None and existing_feature != feature_name:
+            raise ValueError(
+                "Compact feature name collision: "
+                f"{feature_name} and {existing_feature} both map to {compact_name}"
+            )
+        compact_names[feature_name] = compact_name
+        used_names[compact_name] = feature_name
+
+    return compact_names
+
+
 def empty_champion_scaling_profile(
     champion_id: int,
     champion_name: str,
-    stat_types: list[str],
+    compact_features_by_name: dict[str, str],
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
         "_key": str(champion_id),
-        "championName": champion_name,
-        "championId": champion_id,
-        "abilityCount": 0,
-        "scalingAbilityCount": 0,
-        "scalingTypeCount": 0,
-        "scalingStatMentionCount": 0,
-        "scalingStageMentionCount": 0,
+        "cid": champion_id,
+        "champ": champion_name,
+        "ab": 0,
+        "sc_ab": 0,
+        "sc_ty": 0,
+        "sc_m": 0,
+        "sc_st": 0,
     }
-    for stat_type in stat_types:
-        row[f"{stat_type}_ability_count"] = 0
-        row[f"{stat_type}_stage_count"] = 0
+    for compact_feature in compact_features_by_name.values():
+        row[f"{compact_feature}_ab"] = 0
+        row[f"{compact_feature}_st"] = 0
     return row
 
 
 def build_champion_ability_scaling_profiles(
     ratio_rows: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    stat_types = ratio_stat_types_from_rows(ratio_rows)
+    feature_names = ratio_stat_types_from_rows(ratio_rows)
+    compact_features_by_name = compact_feature_names(feature_names)
     profiles: dict[int, dict[str, Any]] = {}
 
     for ratio_row in ratio_rows:
@@ -116,39 +169,39 @@ def build_champion_ability_scaling_profiles(
             profiles[champion_id] = empty_champion_scaling_profile(
                 champion_id,
                 champion_name,
-                stat_types,
+                compact_features_by_name,
             )
         profile = profiles[champion_id]
         stage_count = ratio_row.get("stageCount")
         if not isinstance(stage_count, int) or stage_count < 1:
             stage_count = 1
 
-        profile["abilityCount"] += 1
+        profile["ab"] += 1
         ability_stat_count = 0
-        for stat_type in stat_types:
-            if ratio_row.get(stat_type) != 1:
+        for feature_name, compact_feature in compact_features_by_name.items():
+            if ratio_row.get(feature_name) != 1:
                 continue
-            profile[f"{stat_type}_ability_count"] += 1
-            profile[f"{stat_type}_stage_count"] += stage_count
+            profile[f"{compact_feature}_ab"] += 1
+            profile[f"{compact_feature}_st"] += stage_count
             ability_stat_count += 1
 
         if ability_stat_count:
-            profile["scalingAbilityCount"] += 1
-            profile["scalingStatMentionCount"] += ability_stat_count
-            profile["scalingStageMentionCount"] += ability_stat_count * stage_count
+            profile["sc_ab"] += 1
+            profile["sc_m"] += ability_stat_count
+            profile["sc_st"] += ability_stat_count * stage_count
 
     for profile in profiles.values():
-        profile["scalingTypeCount"] = sum(
+        profile["sc_ty"] = sum(
             1
-            for stat_type in stat_types
-            if profile[f"{stat_type}_ability_count"] > 0
+            for compact_feature in compact_features_by_name.values()
+            if profile[f"{compact_feature}_ab"] > 0
         )
 
     return sorted(
         profiles.values(),
         key=lambda profile: (
-            str(profile.get("championName") or ""),
-            int(profile.get("championId") or 0),
+            str(profile.get("champ") or ""),
+            int(profile.get("cid") or 0),
         ),
     )
 

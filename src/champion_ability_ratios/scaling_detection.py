@@ -3,28 +3,46 @@ from __future__ import annotations
 import re
 from typing import Any
 
-DAMAGE_REDUCTION_PATTERNS = (
-    r"\bdamage reduction\b",
-    r"\breduced damage\b",
-    r"\bdamage taken\b",
-)
 SCALING_DESCRIPTION_PATTERNS = (
-    r"\+\s*[^.;\]\[]+",
-    r"%[^.;\]\[]*\bof\s+[^.;\]\[]+",
-    r"based on\s+[^.;\]\[]+",
-    r"per\s+100%?\s+[^.;\]\[]+",
-    r"scales?\s+with\s+[^.;\]\[]+",
+    (r"\+\s*[^.;\]\[]+", "flat"),
+    (r"%[^.;\]\[]*\bof\s+[^.;\]\[]+", "percent"),
+    (r"based on\s+[^.;\]\[]+", "percent"),
+    (r"per\s+100%?\s+[^.;\]\[]+", "percent"),
+    (r"scales?\s+with\s+[^.;\]\[]+", "percent"),
+    (r"increases?\s+with\s+[^.;\]\[]+", "percent"),
+    (r"increased by\s+[^.;\]\[]+", "percent"),
 )
-NON_DAMAGE_DESCRIPTION_MARKERS = (
-    "heal",
-    "heals",
-    "healing",
-    "restore",
-    "restores",
-    "restoring",
-    "shield",
-    "movement speed",
-)
+CC_PATTERNS = {
+    "cc_slow": r"\bslow(?:s|ed|ing)?\b",
+    "cc_stun": r"\bstun(?:s|ned|ning)?\b",
+    "cc_root": r"\broot(?:s|ed|ing)?\b|immobili[sz]",
+    "cc_knock": r"\bknock(?:s|ed|ing)?\b|airborne|pull(?:s|ed|ing)?",
+    "cc_suppress": r"\bsuppress(?:es|ed|ing)?\b",
+    "cc_fear": r"\bfear(?:s|ed|ing)?\b",
+    "cc_charm": r"\bcharm(?:s|ed|ing)?\b",
+    "cc_silence": r"\bsilenc(?:e|es|ed|ing)\b",
+    "cc_taunt": r"\btaunt(?:s|ed|ing)?\b",
+    "cc_blind": r"\bblind(?:s|ed|ing)?\b",
+    "cc_sleep": r"\bsleep|drowsy\b",
+}
+CONCEPT_PATTERNS = {
+    "eff_heal": r"\bheal(?:s|ed|ing)?\b|\brestore(?:s|d|ing)?\b",
+    "eff_shield": r"\bshield(?:s|ed|ing)?\b",
+    "eff_ms": r"\bmovement speed\b|\bmove speed\b",
+    "eff_dash": r"\bdash(?:es|ed|ing)?\b|\bblink(?:s|ed|ing)?\b|\bleap(?:s|ed|ing)?\b",
+    "eff_dr": r"\bdamage reduction\b|\breduced damage\b|\bdamage taken\b",
+    "eff_arpen": r"\b(?:armor|armour) penetration\b",
+    "eff_mpen": r"\bmagic penetration\b",
+    "eff_stealth": r"\bstealth\b|\binvisible\b|\bcamouflage\b",
+    "eff_reveal": r"\breveal(?:s|ed|ing)?\b",
+    "eff_as": r"\battack speed\b",
+}
+DAMAGE_TYPE_CONCEPTS = {
+    "MAGIC_DAMAGE": "dmg_magic",
+    "PHYSICAL_DAMAGE": "dmg_phys",
+    "TRUE_DAMAGE": "dmg_true",
+    "OTHER_DAMAGE": "dmg_mixed",
+}
 
 
 def normalize_text(value: Any) -> str:
@@ -100,6 +118,17 @@ def base_stat_names_from_text(value: Any) -> set[str]:
     if "critical strike" in text or "crit chance" in text or "crit" in text:
         stats.add("crit_chance")
 
+    if "armor penetration" in text or "armour penetration" in text:
+        stats.add("armour_pen")
+    if "magic penetration" in text:
+        stats.add("magic_pen")
+    if "lethality" in text:
+        stats.add("lethality")
+    if text_has(r"\b(?:champion )?level\b", text):
+        stats.add("level")
+    if "tenacity" in text:
+        stats.add("tenacity")
+
     if text_has(r"\bability power\b|\bap\b", text):
         stats.add("ap")
 
@@ -149,8 +178,6 @@ def stat_column_names_from_description(description: Any) -> set[str]:
     text = normalize_text(description)
     if not text:
         return set()
-    if any(re.search(pattern, text) for pattern in DAMAGE_REDUCTION_PATTERNS):
-        return set()
 
     stats: set[str] = set()
     for match in re.finditer(r"damage[^.]*based on\s+[^.;\]\[]+", text):
@@ -161,14 +188,61 @@ def stat_column_names_from_description(description: Any) -> set[str]:
         if fragment.strip()
     ]
     for fragment in fragments:
-        if "damage" not in fragment and "on-hit" not in fragment:
-            continue
-        if any(marker in fragment for marker in NON_DAMAGE_DESCRIPTION_MARKERS):
-            continue
-        for pattern in SCALING_DESCRIPTION_PATTERNS:
+        for pattern, default_prefix in SCALING_DESCRIPTION_PATTERNS:
             for match in re.finditer(pattern, fragment):
-                stats.update(stat_column_names_from_text(match.group(0)))
+                stats.update(
+                    stat_column_names_from_text(
+                        match.group(0),
+                        default_prefix=default_prefix,
+                    )
+                )
     return stats
+
+
+def extract_ability_concepts(ability: dict[str, Any]) -> set[str]:
+    text = normalize_text(
+        " ".join(
+            str(ability.get(key) or "")
+            for key in ("description", "dynamicDescription")
+        )
+    )
+    concepts = {
+        concept
+        for concept, pattern in CONCEPT_PATTERNS.items()
+        if text_has(pattern, text)
+    }
+    if grants_resist_buff(text):
+        concepts.add("eff_resist")
+    cc_concepts = {
+        concept
+        for concept, pattern in CC_PATTERNS.items()
+        if text_has(pattern, text)
+    }
+    concepts.update(cc_concepts)
+    if cc_concepts:
+        concepts.add("cc")
+
+    damage_type = ability.get("damageType")
+    if isinstance(damage_type, str) and damage_type in DAMAGE_TYPE_CONCEPTS:
+        concepts.add(DAMAGE_TYPE_CONCEPTS[damage_type])
+    if ability.get("projectile") == "TRUE":
+        concepts.add("proj")
+    if ability.get("spellEffects") == "spellaoe":
+        concepts.add("aoe")
+    return concepts
+
+
+def grants_resist_buff(text: str) -> bool:
+    for fragment in re.split(r"[.;]", text):
+        if "penetration" in fragment:
+            continue
+        if text_has(
+            r"\b(?:gain|gains|gaining|grant|grants|increas\w+|bonus)\b"
+            r"[^.;]*\b(?:armor|armour|magic resist|magic resistance|resists)\b",
+            fragment,
+        ):
+            return True
+    return False
 
 
 def extract_ability_scaling_stats(ability: dict[str, Any]) -> set[str]:

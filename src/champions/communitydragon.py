@@ -88,6 +88,18 @@ DAMAGE_CALC_NAME_MARKERS = (
     "shot",
     "projectile",
 )
+SCALING_CALC_NAME_MARKERS = DAMAGE_CALC_NAME_MARKERS + (
+    "armor",
+    "armour",
+    "heal",
+    "health",
+    "mana",
+    "move",
+    "mr",
+    "resist",
+    "shield",
+    "speed",
+)
 PART_TYPE_STAT_DEFAULTS = {
     "StatByCoefficientCalculationPart": "percent_ap",
 }
@@ -839,10 +851,7 @@ def damage_calc_names(
     dynamic_description: str | None,
 ) -> list[str]:
     calc_names: list[str] = []
-    placeholders = {
-        placeholder.lower()
-        for placeholder in PLACEHOLDER_PATTERN.findall(dynamic_description or "")
-    }
+    placeholders = placeholder_names(dynamic_description)
 
     for calc_name in calc_map:
         normalized_name = clean_text_lower(calc_name)
@@ -855,6 +864,13 @@ def damage_calc_names(
             calc_names.append(calc_name)
 
     return calc_names
+
+
+def placeholder_names(dynamic_description: str | None) -> set[str]:
+    return {
+        placeholder.lower()
+        for placeholder in PLACEHOLDER_PATTERN.findall(dynamic_description or "")
+    }
 
 
 def extract_damage_parts(
@@ -871,6 +887,51 @@ def extract_damage_parts(
         if calc is None:
             continue
         ratio_columns = normalize_stat_columns(collect_calc_stat_columns(calc, calc_map))
+        units = [human_stat_label(column_name) for column_name in ratio_columns]
+        parts.append(
+            {
+                "name": calc_name,
+                "ratioColumns": ratio_columns,
+                "units": units,
+            }
+        )
+    return parts
+
+
+def scaling_calc_names(
+    calc_map: dict[str, Any],
+    dynamic_description: str | None,
+) -> list[str]:
+    placeholders = placeholder_names(dynamic_description)
+    calc_names: list[str] = []
+
+    for calc_name, calc in calc_map.items():
+        ratio_columns = collect_calc_stat_columns(calc, calc_map)
+        if not ratio_columns:
+            continue
+
+        normalized_name = clean_text_lower(calc_name)
+        if calc_name.lower() in placeholders or any(
+            marker in normalized_name for marker in SCALING_CALC_NAME_MARKERS
+        ):
+            calc_names.append(calc_name)
+
+    return calc_names
+
+
+def extract_scaling_parts(
+    spell: dict[str, Any],
+    dynamic_description: str | None,
+) -> list[dict[str, Any]]:
+    calc_map = spell.get("mSpellCalculations")
+    if not isinstance(calc_map, dict):
+        return []
+
+    parts: list[dict[str, Any]] = []
+    for calc_name in scaling_calc_names(calc_map, dynamic_description):
+        ratio_columns = normalize_stat_columns(
+            collect_calc_stat_columns(calc_map[calc_name], calc_map)
+        )
         units = [human_stat_label(column_name) for column_name in ratio_columns]
         parts.append(
             {
@@ -1016,6 +1077,7 @@ def build_formatted_ability(
         damage_type,
     )
     damage_parts = extract_damage_parts(spell, dynamic_description)
+    scaling_parts = extract_scaling_parts(spell, dynamic_description)
 
     return {
         "name": (v1_spell_info or {}).get("name"),
@@ -1076,8 +1138,9 @@ def build_formatted_ability(
         ),
         "width": width,
         "damageParts": damage_parts,
-        "units": ability_units_from_parts(damage_parts),
-        "ratioColumns": ability_ratio_columns_from_parts(damage_parts),
+        "scalingParts": scaling_parts,
+        "units": ability_units_from_parts(scaling_parts),
+        "ratioColumns": ability_ratio_columns_from_parts(scaling_parts),
         "dataValues": data_value_map,
         "cost": (v1_spell_info or {}).get("costCoefficients"),
         "cooldown": (v1_spell_info or {}).get("cooldownCoefficients"),
