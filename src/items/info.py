@@ -4,13 +4,16 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
-from item_value_map.collect import (
+from items.collect import ITEMS_FILE_PATH, load_items_collected
+from items.relationships import (
+    build_items_by_id,
+    extract_related_non_legendary_item_ids,
+)
+from items.value_map.scoring import (
     EXCLUDED_ITEM_VALUE_MAP_IDS,
     LEGENDARY_ITEM_VALUE_MAP_ADDITION_IDS,
     extract_legendary_item_ids,
 )
-from items.collect import ITEMS_FILE_PATH, load_items_collected
-from items.relationships import extract_related_non_legendary_item_ids
 from shared import write_jsonl
 
 ITEM_INFO_FILE_PATH = ITEMS_FILE_PATH.parent / "item_info.jsonl"
@@ -18,7 +21,9 @@ COMMUNITY_DRAGON_BASE_URL = "https://raw.communitydragon.org/latest/game"
 
 
 def build_item_image_url(icon_path: str) -> str:
-    return COMMUNITY_DRAGON_BASE_URL + icon_path.lower().replace("/lol-game-data/assets", "")
+    return COMMUNITY_DRAGON_BASE_URL + icon_path.lower().replace(
+        "/lol-game-data/assets", ""
+    )
 
 
 def is_eligible_item_info_item(item: dict[str, Any]) -> bool:
@@ -43,12 +48,10 @@ def extract_item_info(
     if legendary_item_ids is None:
         legendary_item_ids = extract_legendary_item_ids(items)
 
-    items_by_id = {
-        item["id"]: item
-        for item in items
-        if isinstance(item, dict) and isinstance(item.get("id"), int)
-    }
-    non_legendary_item_ids = extract_related_non_legendary_item_ids(items, legendary_item_ids)
+    items_by_id = build_items_by_id(items)
+    non_legendary_item_ids = extract_related_non_legendary_item_ids(
+        items, legendary_item_ids
+    )
     included_item_ids = legendary_item_ids | non_legendary_item_ids
 
     records: list[dict[str, Any]] = []

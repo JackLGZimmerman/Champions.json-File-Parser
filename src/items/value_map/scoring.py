@@ -4,9 +4,14 @@ import csv
 from pathlib import Path
 from typing import Any, Literal, NamedTuple, TypedDict, cast
 
-from items.collect import ITEMS_FILE_PATH
-from item_value_map.item_group_definitions import build_item_group_definitions
-from shared import data_segment_dir, load_jsonl, write_jsonl
+from items.collect import ITEMS_FILE_PATH, load_items_collected
+from items.relationships import (
+    build_items_by_id,
+    extract_direct_related_item_ids,
+    extract_item_relation_ids,
+)
+from items.value_map.item_group_definitions import build_item_group_definitions
+from shared import data_segment_dir, write_jsonl
 
 ITEM_VALUE_MAP_FILE_PATH: Path = data_segment_dir("items") / "item_value_map.jsonl"
 ITEMS_PATH: Path = ITEMS_FILE_PATH
@@ -173,27 +178,6 @@ ITEM_GROUP_DEFINITIONS: tuple[ItemGroup, ...] = build_item_group_definitions(
 )
 
 
-def load_jsonl_dicts(path: Path) -> list[dict[str, Any]]:
-    return [record for record in load_jsonl(path) if isinstance(record, dict)]
-
-
-def build_items_by_id(items: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
-    return {
-        item["id"]: item
-        for item in items
-        if isinstance(item, dict) and isinstance(item.get("id"), int)
-    }
-
-
-def extract_item_relation_ids(item: dict[str, Any], key: str) -> tuple[int, ...]:
-    related_ids = item.get(key)
-    if not isinstance(related_ids, list):
-        return ()
-    return tuple(
-        related_id for related_id in related_ids if isinstance(related_id, int)
-    )
-
-
 def load_champion_position_item_counts(
     path: Path = CHAMPION_POSITION_ITEM_COUNTS_PATH,
 ) -> dict[ChampionPositionKey, dict[int, int]]:
@@ -244,39 +228,12 @@ def is_legendary_item_value_item(item: dict[str, Any]) -> bool:
 def extract_legendary_item_ids(
     items: list[dict[str, Any]] | None = None,
 ) -> set[int]:
-    items = load_jsonl_dicts(ITEMS_PATH) if items is None else items
+    items = load_items_collected(ITEMS_PATH) if items is None else items
     return {
         item["id"]
         for item in items
         if isinstance(item, dict) and is_legendary_item_value_item(item)
     }
-def extract_direct_related_item_ids(
-    items_by_id: dict[int, dict[str, Any]],
-    parent_item_ids: set[int],
-    exclude_parent_item_ids: bool = True,
-) -> set[int]:
-    related_item_ids: set[int] = set()
-
-    for item_id in parent_item_ids:
-        item = items_by_id.get(item_id)
-        if item is None:
-            continue
-
-        related_item_ids.update(extract_item_relation_ids(item, "from"))
-
-    for item_id, item in items_by_id.items():
-        to_item_ids = extract_item_relation_ids(item, "to")
-        if any(parent_item_id in parent_item_ids for parent_item_id in to_item_ids):
-            related_item_ids.add(item_id)
-
-    cleaned_item_ids = {
-        item_id
-        for item_id in related_item_ids
-        if item_id in items_by_id
-    }
-    if exclude_parent_item_ids:
-        cleaned_item_ids.difference_update(parent_item_ids)
-    return cleaned_item_ids
 
 
 def clean_related_item_ids(
@@ -292,7 +249,7 @@ def clean_related_item_ids(
 def extract_item_pools_from_items(
     items: list[dict[str, Any]] | None = None,
 ) -> ItemPools:
-    items = load_jsonl_dicts(ITEMS_PATH) if items is None else items
+    items = load_items_collected(ITEMS_PATH) if items is None else items
     items_by_id = build_items_by_id(items)
     legendary_item_ids = extract_legendary_item_ids(items)
 
@@ -505,8 +462,8 @@ def validate_item_pools(
     baseline_by_itemid: dict[int, BuildValues],
     items_by_id: dict[int, dict[str, Any]],
 ) -> None:
-    missing_legendary_baselines = (
-        item_pools.legendary_item_ids - set(baseline_by_itemid)
+    missing_legendary_baselines = item_pools.legendary_item_ids - set(
+        baseline_by_itemid
     )
     if missing_legendary_baselines:
         raise ValueError(
@@ -519,17 +476,13 @@ def extract_counted_item_ids(
     counts_by_combo: dict[ChampionPositionKey, dict[int, int]],
 ) -> set[int]:
     return {
-        itemid
-        for item_counts in counts_by_combo.values()
-        for itemid in item_counts
+        itemid for item_counts in counts_by_combo.values() for itemid in item_counts
     }
 
 
 def extract_item_value_ids(builds: list[ScopedItemBuild]) -> set[int]:
     return {
-        itemid
-        for build in builds
-        if isinstance(itemid := build.get("itemid"), int)
+        itemid for build in builds if isinstance(itemid := build.get("itemid"), int)
     }
 
 
@@ -559,12 +512,7 @@ def build_item_upgrade_map(
         if item is None:
             continue
 
-        to_items = item.get("to")
-        upgrade_map[item_id] = (
-            tuple(to_item for to_item in to_items if isinstance(to_item, int))
-            if isinstance(to_items, list)
-            else ()
-        )
+        upgrade_map[item_id] = extract_item_relation_ids(item, "to")
 
     return upgrade_map
 
@@ -646,7 +594,7 @@ def save_build_values(path: Path, builds: list[dict[str, Any]]) -> None:
 def calculate_build_values(
     output_path: Path = ITEM_VALUE_MAP_FILE_PATH,
 ) -> list[ScopedItemBuild]:
-    items = load_jsonl_dicts(ITEMS_PATH)
+    items = load_items_collected(ITEMS_PATH)
     items_by_id = build_items_by_id(items)
     item_pools = extract_item_pools_from_items(items)
     baseline_by_itemid = build_item_group_baseline_map()

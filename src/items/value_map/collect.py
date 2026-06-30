@@ -4,12 +4,9 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
-from item_value_map.scoring import (
-    EXCLUDED_ITEM_VALUE_MAP_IDS as EXCLUDED_ITEM_VALUE_MAP_IDS,
-    LEGENDARY_ITEM_VALUE_MAP_ADDITION_IDS as LEGENDARY_ITEM_VALUE_MAP_ADDITION_IDS,
-    ITEM_VALUE_MAP_FILE_PATH as ITEM_VALUE_MAP_FILE_PATH,
+from items.value_map.scoring import (
+    ITEM_VALUE_MAP_FILE_PATH,
     calculate_build_values,
-    extract_legendary_item_ids as extract_legendary_item_ids,
 )
 
 

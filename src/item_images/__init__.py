@@ -1,1 +1,0 @@
-"""Item image collection package."""

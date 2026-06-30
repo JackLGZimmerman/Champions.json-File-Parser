@@ -10,9 +10,9 @@ import champion_ability_advanced.collect as champion_ability_advanced
 import champion_ability_attributes.collect as champion_ability_attributes
 import champion_static_basic.collect as champion_static_basic
 import champions.collect as champions
-import item_images.collect as item_images
-import item_value_map.collect as item_value_map
 import items.collect as items
+import items.info as item_info
+import items.value_map.collect as item_value_map
 
 if __package__ is None or __package__ == "":
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -20,7 +20,7 @@ if __package__ is None or __package__ == "":
 COLLECTION_MODULES = (
     champions,
     items,
-    item_images,
+    item_info,
     champion_static_basic,
     champion_ability_advanced,
     champion_ability_attributes,
