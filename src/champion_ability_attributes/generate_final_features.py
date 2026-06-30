@@ -92,17 +92,17 @@ def empty_champion_scaling_profile(
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
         "_key": str(champion_id),
-        "cid": champion_id,
-        "champ": champion_name,
-        "ab": 0,
-        "sc_ab": 0,
-        "sc_ty": 0,
-        "sc_m": 0,
-        "sc_st": 0,
+        "championId": champion_id,
+        "championName": champion_name,
+        "ability_count": 0,
+        "scaling_ability_count": 0,
+        "scaling_trait_type_count": 0,
+        "scaling_trait_match_count": 0,
+        "scaling_stage_match_count": 0,
     }
     for feature_name in feature_names:
-        row[f"{feature_name}_ab"] = 0
-        row[f"{feature_name}_st"] = 0
+        row[f"{feature_name}_ability_count"] = 0
+        row[f"{feature_name}_stage_count"] = 0
     return row
 
 
@@ -129,32 +129,32 @@ def build_champion_ability_scaling_profiles(
         if not isinstance(stage_count, int) or stage_count < 1:
             stage_count = 1
 
-        profile["ab"] += 1
+        profile["ability_count"] += 1
         ability_stat_count = 0
         for feature_name in feature_names:
             if attribute_row.get(feature_name) != 1:
                 continue
-            profile[f"{feature_name}_ab"] += 1
-            profile[f"{feature_name}_st"] += stage_count
+            profile[f"{feature_name}_ability_count"] += 1
+            profile[f"{feature_name}_stage_count"] += stage_count
             ability_stat_count += 1
 
         if ability_stat_count:
-            profile["sc_ab"] += 1
-            profile["sc_m"] += ability_stat_count
-            profile["sc_st"] += ability_stat_count * stage_count
+            profile["scaling_ability_count"] += 1
+            profile["scaling_trait_match_count"] += ability_stat_count
+            profile["scaling_stage_match_count"] += ability_stat_count * stage_count
 
     for profile in profiles.values():
-        profile["sc_ty"] = sum(
+        profile["scaling_trait_type_count"] = sum(
             1
             for feature_name in feature_names
-            if profile[f"{feature_name}_ab"] > 0
+            if profile[f"{feature_name}_ability_count"] > 0
         )
 
     return sorted(
         profiles.values(),
         key=lambda profile: (
-            str(profile.get("champ") or ""),
-            int(profile.get("cid") or 0),
+            str(profile.get("championName") or ""),
+            int(profile.get("championId") or 0),
         ),
     )
 
