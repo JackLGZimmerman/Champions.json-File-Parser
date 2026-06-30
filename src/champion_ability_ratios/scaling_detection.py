@@ -6,11 +6,22 @@ from typing import Any
 SCALING_DESCRIPTION_PATTERNS = (
     (r"\+\s*[^.;\]\[]+", "flat"),
     (r"%[^.;\]\[]*\bof\s+[^.;\]\[]+", "percent"),
+    (
+        r"%\s+(?:of\s+)?(?:the\s+)?(?:target(?:'s)?|enemy(?:'s)?|their\s+)?"
+        r"(?:max(?:imum)?|missing|current) health\b[^.;\]\[]*",
+        "percent",
+    ),
+    (r"\bpercentage[^.;\]\[]*\bof\s+[^.;\]\[]+", "percent"),
     (r"based on\s+[^.;\]\[]+", "percent"),
-    (r"per\s+100%?\s+[^.;\]\[]+", "percent"),
+    (r"per\s+(?:\d+|@\w+@)%?\s+[^.;\]\[]+", "percent"),
     (r"scales?\s+with\s+[^.;\]\[]+", "percent"),
     (r"increases?\s+with\s+[^.;\]\[]+", "percent"),
     (r"increased by\s+[^.;\]\[]+", "percent"),
+    (
+        r"\b(?:max(?:imum)?|missing|current) health\b"
+        r"\s+(?:magic|physical|true)?\s*damage\b",
+        "percent",
+    ),
 )
 CC_PATTERNS = {
     "cc_slow": r"\bslow(?:s|ed|ing)?\b",
@@ -98,17 +109,26 @@ def base_stat_names_from_text(value: Any) -> set[str]:
 
     stats: set[str] = set()
 
-    if text_has(r"\btarget(?:'s)?[^.;,]*\bmissing health\b", text):
+    target_reference = r"(?:targets?|enemies|enemy(?: champion)?|their)"
+    possessive_target_reference = rf"{target_reference}(?:'s)?"
+
+    if text_has(rf"\b{possessive_target_reference}\s+missing health\b", text):
         stats.add("target_missing_hp")
     elif "missing health" in text:
         stats.add("missing_hp")
 
-    if text_has(r"\btarget(?:'s)?[^.;,]*\bcurrent health\b", text):
+    if text_has(rf"\b{possessive_target_reference}\s+current health\b", text):
         stats.add("target_current_hp")
     elif "current health" in text:
         stats.add("current_hp")
 
-    if text_has(r"\btarget(?:'s)?[^.;,]*\b(?:maximum|max) health\b", text):
+    if text_has(
+        rf"\b{possessive_target_reference}\s+(?:maximum|max) health\b",
+        text,
+    ) or text_has(
+        r"\b(?:maximum|max) health\b\s+(?:magic|physical|true)?\s*damage\b",
+        text,
+    ):
         stats.add("target_max_hp")
     elif text_has(r"\b(?:maximum|max) health\b", text):
         stats.add("max_hp")
@@ -201,6 +221,9 @@ def stat_column_names_from_description(description: Any) -> set[str]:
     stats: set[str] = set()
     for match in re.finditer(r"damage[^.]*based on\s+[^.;\]\[]+", text):
         stats.update(stat_column_names_from_text(match.group(0)))
+    for fragment in (fragment.strip() for fragment in re.split(r"[.;]", text)):
+        for match in re.finditer(r"\bpercentage[^.;\]\[]*\bof\s+[^.;\]\[]+", fragment):
+            stats.update(stat_column_names_from_text(match.group(0)))
     fragments = [
         fragment.strip()
         for fragment in re.split(r"[.;]|\band\b", text)
